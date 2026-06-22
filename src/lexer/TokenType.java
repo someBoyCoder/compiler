@@ -10,6 +10,11 @@ public enum TokenType {
     DO,
     WHILE,
     FOR,
+    SWITCH,
+    CASE,
+    DEFAULT,
+    BREAK,
+    COLON,
 
     TRUE,
     FALSE,

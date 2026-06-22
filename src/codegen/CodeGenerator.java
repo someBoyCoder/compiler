@@ -2,7 +2,9 @@ package codegen;
 
 import ast.*;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 /**
@@ -11,6 +13,7 @@ import java.util.List;
 public class CodeGenerator {
 
     private final List<Instruction> instructions = new ArrayList<>();
+    private final Deque<List<Integer>> breakJumpStack = new ArrayDeque<>();
     private int nextRegister = 0;
 
     public List<Instruction> generate(Program program) {
@@ -58,6 +61,16 @@ public class CodeGenerator {
 
         if (statement instanceof For forStatement) {
             generateFor(forStatement);
+            return;
+        }
+
+        if (statement instanceof Switch switchStatement) {
+            generateSwitch(switchStatement);
+            return;
+        }
+
+        if (statement instanceof Break) {
+            generateBreak();
             return;
         }
 
@@ -195,6 +208,115 @@ public class CodeGenerator {
                 assignment.name(),
                 expressionRegister
         ));
+    }
+
+    private void generateSwitch(Switch switchStatement) {
+        int switchRegister = generateExpression(switchStatement.expression());
+
+        List<Integer> caseJumpIndexes = new ArrayList<>();
+
+        for (SwitchCase switchCase : switchStatement.cases()) {
+            int caseValueRegister = generateExpression(switchCase.value());
+            int conditionRegister = allocateRegister();
+
+            instructions.add(new Instruction(
+                    OpCode.EQUAL,
+                    conditionRegister,
+                    switchRegister,
+                    caseValueRegister
+            ));
+
+            int jumpIndex = instructions.size();
+
+            instructions.add(new Instruction(
+                    OpCode.JUMP_IF_TRUE,
+                    conditionRegister,
+                    -1
+            ));
+
+            caseJumpIndexes.add(jumpIndex);
+        }
+
+        int defaultJumpIndex = instructions.size();
+
+        instructions.add(new Instruction(
+                OpCode.JUMP,
+                -1
+        ));
+
+        List<Integer> breakJumps = new ArrayList<>();
+        breakJumpStack.push(breakJumps);
+
+        for (int i = 0; i < switchStatement.cases().size(); i++) {
+            SwitchCase switchCase = switchStatement.cases().get(i);
+
+            int caseStartIndex = instructions.size();
+
+            instructions.set(
+                    caseJumpIndexes.get(i),
+                    new Instruction(
+                            OpCode.JUMP_IF_TRUE,
+                            instructions.get(caseJumpIndexes.get(i)).args()[0],
+                            caseStartIndex
+                    )
+            );
+
+            for (Statement statement : switchCase.body()) {
+                generateStatement(statement);
+            }
+
+            int autoJumpIndex = instructions.size();
+
+            instructions.add(new Instruction(
+                    OpCode.JUMP,
+                    -1
+            ));
+
+            breakJumps.add(autoJumpIndex);
+        }
+
+        int defaultStartIndex = instructions.size();
+
+        instructions.set(
+                defaultJumpIndex,
+                new Instruction(
+                        OpCode.JUMP,
+                        defaultStartIndex
+                )
+        );
+
+        if (switchStatement.defaultBody() != null) {
+            for (Statement statement : switchStatement.defaultBody()) {
+                generateStatement(statement);
+            }
+        }
+
+        int switchEndIndex = instructions.size();
+
+        for (Integer breakJumpIndex : breakJumpStack.pop()) {
+            instructions.set(
+                    breakJumpIndex,
+                    new Instruction(
+                            OpCode.JUMP,
+                            switchEndIndex
+                    )
+            );
+        }
+    }
+
+    private void generateBreak() {
+        if (breakJumpStack.isEmpty()) {
+            throw new RuntimeException("break вне switch");
+        }
+
+        int jumpIndex = instructions.size();
+
+        instructions.add(new Instruction(
+                OpCode.JUMP,
+                -1
+        ));
+
+        breakJumpStack.peek().add(jumpIndex);
     }
 
     private int allocateRegister() {

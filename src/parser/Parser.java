@@ -51,6 +51,14 @@ public class Parser {
             return parseFor();
         }
 
+        if (match(TokenType.SWITCH)) {
+            return parseSwitch();
+        }
+
+        if (match(TokenType.BREAK)) {
+            return parseBreak();
+        }
+
         if (check(TokenType.IDENTIFIER)) {
             return parseAssignment();
         }
@@ -256,6 +264,73 @@ public class Parser {
         consume(TokenType.RIGHT_BRACE, "Ожидалась '}' после тела for");
 
         return new For(init, condition, update, body);
+    }
+
+    private Statement parseBreak() {
+        consume(TokenType.SEMICOLON, "Ожидалась ';' после break");
+        return new Break();
+    }
+
+    private Statement parseSwitch() {
+        consume(TokenType.LEFT_PAREN, "Ожидалась '(' после switch");
+
+        Expression expression = parseExpression();
+
+        consume(TokenType.RIGHT_PAREN, "Ожидалась ')' после выражения switch");
+        consume(TokenType.LEFT_BRACE, "Ожидалась '{' после switch");
+
+        List<SwitchCase> cases = new ArrayList<>();
+        List<Statement> defaultBody = null;
+
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            if (match(TokenType.CASE)) {
+                cases.add(parseSwitchCase());
+            } else if (match(TokenType.DEFAULT)) {
+                if (defaultBody != null) {
+                    throw new ParseException(previous(), "Блок default уже объявлен");
+                }
+
+                defaultBody = parseDefaultBody();
+            } else {
+                throw new ParseException(peek(), "Ожидался case или default");
+            }
+        }
+
+        consume(TokenType.RIGHT_BRACE, "Ожидалась '}' после switch");
+
+        return new Switch(expression, cases, defaultBody);
+    }
+
+    private List<Statement> parseDefaultBody() {
+        consume(TokenType.COLON, "Ожидалась ':' после default");
+
+        List<Statement> body = new ArrayList<>();
+
+        while (!check(TokenType.CASE)
+                && !check(TokenType.DEFAULT)
+                && !check(TokenType.RIGHT_BRACE)
+                && !isAtEnd()) {
+            body.add(parseStatement());
+        }
+
+        return body;
+    }
+
+    private SwitchCase parseSwitchCase() {
+        Expression value = parseExpression();
+
+        consume(TokenType.COLON, "Ожидалась ':' после case");
+
+        List<Statement> body = new ArrayList<>();
+
+        while (!check(TokenType.CASE)
+                && !check(TokenType.DEFAULT)
+                && !check(TokenType.RIGHT_BRACE)
+                && !isAtEnd()) {
+            body.add(parseStatement());
+        }
+
+        return new SwitchCase(value, body);
     }
 
     private Assignment parseAssignmentWithoutSemicolon() {

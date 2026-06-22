@@ -55,6 +55,10 @@ public class Lexer {
             case "do" -> TokenType.DO;
             case "while" -> TokenType.WHILE;
             case "for" -> TokenType.FOR;
+            case "switch" -> TokenType.SWITCH;
+            case "case" -> TokenType.CASE;
+            case "default" -> TokenType.DEFAULT;
+            case "break" -> TokenType.BREAK;
             case "true" -> TokenType.TRUE;
             case "false" -> TokenType.FALSE;
             default -> TokenType.IDENTIFIER;
@@ -120,6 +124,7 @@ public class Lexer {
             case ')' -> tokens.add(new Token(TokenType.RIGHT_PAREN, ")", line, startColumn));
             case '{' -> tokens.add(new Token(TokenType.LEFT_BRACE, "{", line, startColumn));
             case '}' -> tokens.add(new Token(TokenType.RIGHT_BRACE, "}", line, startColumn));
+            case ':' -> tokens.add(new Token(TokenType.COLON, ":", line, startColumn));
 
             default -> throw new RuntimeException("Неизвестный символ '" + c + "' в строке " + line + ", колонка " + startColumn);
         }

@@ -13,10 +13,20 @@ public class Main {
 
     public static void main(String[] args) {
         String source = """
-        int i;
+        int x;
 
-        for (i = 0; i < 3; i = i + 1) {
-            print i;
+        x = 2;
+
+        switch (x) {
+            case 1:
+                print 100;
+                break;
+            case 2:
+                print 200;
+                break;
+            default:
+                print 0;
+                break;
         }
         """;
 

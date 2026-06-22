@@ -12,6 +12,8 @@ public class SemanticAnalyzer {
 
     private final Map<String, Type> variables = new HashMap<>();
 
+    private int breakDepth = 0;
+
     public void analyze(Program program) {
         for (Statement statement : program.statements()) {
             analyzeStatement(statement);
@@ -29,6 +31,10 @@ public class SemanticAnalyzer {
             analyzeDoWhile(doWhile);
         } else if (statement instanceof For forStatement) {
             analyzeFor(forStatement);
+        } else if (statement instanceof Switch switchStatement) {
+            analyzeSwitch(switchStatement);
+        } else if (statement instanceof Break) {
+            analyzeBreak();
         }
     }
 
@@ -129,6 +135,43 @@ public class SemanticAnalyzer {
 
         for (Statement statement : forStatement.body()) {
             analyzeStatement(statement);
+        }
+    }
+
+    private void analyzeSwitch(Switch switchStatement) {
+        Type switchType = analyzeExpression(switchStatement.expression());
+
+        breakDepth++;
+
+        for (SwitchCase switchCase : switchStatement.cases()) {
+            if (!(switchCase.value() instanceof NumberExpression)
+                    && !(switchCase.value() instanceof BooleanExpression)) {
+                throw new RuntimeException("Значение case должно быть литералом");
+            }
+
+            Type caseType = analyzeExpression(switchCase.value());
+
+            if (caseType != switchType) {
+                throw new RuntimeException("Тип case должен совпадать с типом выражения switch");
+            }
+
+            for (Statement statement : switchCase.body()) {
+                analyzeStatement(statement);
+            }
+        }
+
+        if (switchStatement.defaultBody() != null) {
+            for (Statement statement : switchStatement.defaultBody()) {
+                analyzeStatement(statement);
+            }
+        }
+
+        breakDepth--;
+    }
+
+    private void analyzeBreak() {
+        if (breakDepth == 0) {
+            throw new RuntimeException("Оператор break можно использовать только внутри switch");
         }
     }
 }
