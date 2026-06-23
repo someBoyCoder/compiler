@@ -1,10 +1,12 @@
 package vm;
 
 import codegen.Instruction;
+import semantic.Type;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 /**
  * Выполняет инструкции
@@ -13,6 +15,8 @@ public class VirtualMachine {
 
     private final Object[] registers = new Object[256];
     private final Map<String, Object> variables = new HashMap<>();
+    private final Map<String, Type> variableTypes = new HashMap<>();
+    private final Scanner scanner = new Scanner(System.in);
 
     public void execute(List<Instruction> instructions) {
         int ip = 0;
@@ -24,7 +28,11 @@ public class VirtualMachine {
             switch (instruction.opCode()) {
                 case DECLARE_VAR -> {
                     String name = (String) args[0];
-                    variables.putIfAbsent(name, null);
+                    Type type = (Type) args[1];
+
+                    variableTypes.putIfAbsent(name, type);
+                    variables.putIfAbsent(name, defaultValue(type));
+
                     ip++;
                 }
 
@@ -164,6 +172,27 @@ public class VirtualMachine {
                     ip++;
                 }
 
+                case INPUT -> {
+                    String name = (String) args[0];
+
+                    if (!variables.containsKey(name)) {
+                        throw new RuntimeException("Переменная не найдена в VM: " + name);
+                    }
+
+                    Type type = variableTypes.get(name);
+                    String value = scanner.nextLine();
+
+                    Object parsedValue = switch (type) {
+                        case INT -> Integer.parseInt(value);
+                        case BOOLEAN -> Boolean.parseBoolean(value);
+                        case STRING -> value;
+                    };
+
+                    variables.put(name, parsedValue);
+
+                    ip++;
+                }
+
                 case JUMP -> {
                     int targetIndex = (int) args[0];
 
@@ -182,5 +211,13 @@ public class VirtualMachine {
                 }
             }
         }
+    }
+
+    private Object defaultValue(Type type) {
+        return switch (type) {
+            case INT -> 0;
+            case BOOLEAN -> false;
+            case STRING -> "";
+        };
     }
 }

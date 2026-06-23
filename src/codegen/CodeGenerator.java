@@ -28,7 +28,8 @@ public class CodeGenerator {
         if (statement instanceof Declaration declaration) {
             instructions.add(new Instruction(
                     OpCode.DECLARE_VAR,
-                    declaration.name()
+                    declaration.name(),
+                    declaration.type()
             ));
             return;
         }
@@ -51,6 +52,11 @@ public class CodeGenerator {
                     OpCode.PRINT,
                     expressionRegister
             ));
+            return;
+        }
+
+        if (statement instanceof Input input) {
+            generateInput(input);
             return;
         }
 
@@ -85,6 +91,18 @@ public class CodeGenerator {
                     OpCode.LOAD_CONST,
                     register,
                     number.value()
+            ));
+
+            return register;
+        }
+
+        if (expression instanceof StringExpression string) {
+            int register = allocateRegister();
+
+            instructions.add(new Instruction(
+                    OpCode.LOAD_CONST,
+                    register,
+                    string.value()
             ));
 
             return register;
@@ -317,6 +335,13 @@ public class CodeGenerator {
         ));
 
         breakJumpStack.peek().add(jumpIndex);
+    }
+
+    private void generateInput(Input input) {
+        instructions.add(new Instruction(
+                OpCode.INPUT,
+                input.variableName()
+        ));
     }
 
     private int allocateRegister() {

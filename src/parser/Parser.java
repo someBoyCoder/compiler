@@ -39,8 +39,16 @@ public class Parser {
             return parseDeclaration(Type.BOOLEAN);
         }
 
+        if (match(TokenType.STRING_TYPE)) {
+            return parseDeclaration(Type.STRING);
+        }
+
         if (match(TokenType.PRINT)) {
             return parsePrint();
+        }
+
+        if (match(TokenType.INPUT)) {
+            return parseInput();
         }
 
         if (match(TokenType.DO)) {
@@ -151,6 +159,10 @@ public class Parser {
     private Expression parsePrimary() {
         if (match(TokenType.NUMBER)) {
             return new NumberExpression(Integer.parseInt(previous().text()));
+        }
+
+        if (match(TokenType.STRING)) {
+            return new StringExpression(previous().text());
         }
 
         if (match(TokenType.TRUE)) {
@@ -331,6 +343,14 @@ public class Parser {
         }
 
         return new SwitchCase(value, body);
+    }
+
+    private Statement parseInput() {
+        Token variableName = consume(TokenType.IDENTIFIER, "Ожидалось имя переменной после input");
+
+        consume(TokenType.SEMICOLON, "Ожидалась ';' после input");
+
+        return new Input(variableName.text());
     }
 
     private Assignment parseAssignmentWithoutSemicolon() {

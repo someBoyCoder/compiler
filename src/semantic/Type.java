@@ -2,5 +2,6 @@ package semantic;
 
 public enum Type {
     INT,
-    BOOLEAN
+    BOOLEAN,
+    STRING
 }

@@ -27,6 +27,8 @@ public class SemanticAnalyzer {
             analyzeAssignment(assignment);
         } else if (statement instanceof Print print) {
             analyzeExpression(print.expression());
+        } else if (statement instanceof Input input) {
+            analyzeInput(input);
         } else if (statement instanceof DoWhile doWhile) {
             analyzeDoWhile(doWhile);
         } else if (statement instanceof For forStatement) {
@@ -62,6 +64,10 @@ public class SemanticAnalyzer {
     private Type analyzeExpression(Expression expression) {
         if (expression instanceof NumberExpression) {
             return Type.INT;
+        }
+
+        if (expression instanceof StringExpression) {
+            return Type.STRING;
         }
 
         if (expression instanceof BooleanExpression) {
@@ -172,6 +178,12 @@ public class SemanticAnalyzer {
     private void analyzeBreak() {
         if (breakDepth == 0) {
             throw new RuntimeException("Оператор break можно использовать только внутри switch");
+        }
+    }
+
+    private void analyzeInput(Input input) {
+        if (!variables.containsKey(input.variableName())) {
+            throw new RuntimeException("Переменная не объявлена: " + input.variableName());
         }
     }
 }

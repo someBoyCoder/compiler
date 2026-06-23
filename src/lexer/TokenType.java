@@ -6,7 +6,11 @@ package lexer;
 public enum TokenType {
     INT,
     BOOLEAN,
+    STRING_TYPE,
+
     PRINT,
+    INPUT,
+
     DO,
     WHILE,
     FOR,
@@ -21,6 +25,7 @@ public enum TokenType {
 
     IDENTIFIER,
     NUMBER,
+    STRING,
 
     ASSIGN,          // =
     EQUAL_EQUAL,     // ==

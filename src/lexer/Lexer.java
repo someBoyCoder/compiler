@@ -29,6 +29,8 @@ public class Lexer {
                 readIdentifierOrKeyword();
             } else if (Character.isDigit(c)) {
                 readNumber();
+            } else if (c == '"') {
+                readString();
             } else {
                 readSymbol();
             }
@@ -51,6 +53,8 @@ public class Lexer {
         TokenType type = switch (text) {
             case "int" -> TokenType.INT;
             case "boolean" -> TokenType.BOOLEAN;
+            case "string" -> TokenType.STRING_TYPE;
+            case "input" -> TokenType.INPUT;
             case "print" -> TokenType.PRINT;
             case "do" -> TokenType.DO;
             case "while" -> TokenType.WHILE;
@@ -65,6 +69,33 @@ public class Lexer {
         };
 
         tokens.add(new Token(type, text, line, startColumn));
+    }
+
+    private void readString() {
+        int startColumn = column;
+
+        advance(); // пропускаем открывающую кавычку "
+
+        StringBuilder sb = new StringBuilder();
+
+        while (!isAtEnd() && peek() != '"') {
+            char c = advance();
+
+            if (c == '\n') {
+                line++;
+                column = 1;
+            }
+
+            sb.append(c);
+        }
+
+        if (isAtEnd()) {
+            throw new RuntimeException("Незакрытая строка в строке " + line + ", колонка " + startColumn);
+        }
+
+        advance(); // пропускаем закрывающую кавычку "
+
+        tokens.add(new Token(TokenType.STRING, sb.toString(), line, startColumn));
     }
 
     private void readNumber() {

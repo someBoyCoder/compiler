@@ -23,5 +23,6 @@ public enum OpCode {
     JUMP_IF_TRUE,
     JUMP_IF_FALSE,
 
-    PRINT
+    PRINT,
+    INPUT
 }
