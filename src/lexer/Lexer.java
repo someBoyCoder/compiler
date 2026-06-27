@@ -55,8 +55,10 @@ public class Lexer {
             case "double" -> TokenType.DOUBLE;
             case "boolean" -> TokenType.BOOLEAN;
             case "string" -> TokenType.STRING_TYPE;
-            case "input" -> TokenType.INPUT;
+
             case "print" -> TokenType.PRINT;
+            case "input" -> TokenType.INPUT;
+
             case "do" -> TokenType.DO;
             case "while" -> TokenType.WHILE;
             case "for" -> TokenType.FOR;
@@ -64,8 +66,14 @@ public class Lexer {
             case "case" -> TokenType.CASE;
             case "default" -> TokenType.DEFAULT;
             case "break" -> TokenType.BREAK;
+
+            case "gosub" -> TokenType.GOSUB;
+            case "return" -> TokenType.RETURN;
+            case "end" -> TokenType.END;
+
             case "true" -> TokenType.TRUE;
             case "false" -> TokenType.FALSE;
+
             default -> TokenType.IDENTIFIER;
         };
 

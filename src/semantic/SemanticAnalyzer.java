@@ -2,8 +2,7 @@ package semantic;
 
 import ast.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Проверяет смысл кода
@@ -12,11 +11,39 @@ public class SemanticAnalyzer {
 
     private final Map<String, Type> variables = new HashMap<>();
 
+    private final Set<String> labels = new HashSet<>();
+
     private int breakDepth = 0;
 
     public void analyze(Program program) {
+        collectLabels(program.statements());
+
         for (Statement statement : program.statements()) {
             analyzeStatement(statement);
+        }
+    }
+
+    private void collectLabels(List<Statement> statements) {
+        for (Statement statement : statements) {
+            if (statement instanceof Label label) {
+                if (labels.contains(label.name())) {
+                    throw new RuntimeException("Метка уже объявлена: " + label.name());
+                }
+
+                labels.add(label.name());
+            } else if (statement instanceof DoWhile doWhile) {
+                collectLabels(doWhile.body());
+            } else if (statement instanceof For forStatement) {
+                collectLabels(forStatement.body());
+            } else if (statement instanceof Switch switchStatement) {
+                for (SwitchCase switchCase : switchStatement.cases()) {
+                    collectLabels(switchCase.body());
+                }
+
+                if (switchStatement.defaultBody() != null) {
+                    collectLabels(switchStatement.defaultBody());
+                }
+            }
         }
     }
 
@@ -37,6 +64,14 @@ public class SemanticAnalyzer {
             analyzeSwitch(switchStatement);
         } else if (statement instanceof Break) {
             analyzeBreak();
+        } else if (statement instanceof Gosub gosub) {
+            analyzeGosub(gosub);
+        } else if (statement instanceof Return) {
+            // return допустим, отдельной проверки пока не делаем
+        } else if (statement instanceof Label) {
+            // метки уже проверены в collectLabels
+        } else if (statement instanceof End) {
+            // end допустим
         }
     }
 
@@ -212,5 +247,11 @@ public class SemanticAnalyzer {
 
     private boolean isNumeric(Type type) {
         return type == Type.INT || type == Type.DOUBLE;
+    }
+
+    private void analyzeGosub(Gosub gosub) {
+        if (!labels.contains(gosub.labelName())) {
+            throw new RuntimeException("Метка не найдена: " + gosub.labelName());
+        }
     }
 }

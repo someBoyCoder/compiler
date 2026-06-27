@@ -2,24 +2,32 @@ package codegen;
 
 import ast.*;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
+import java.util.*;
 
 /**
  * Превращает AST в инструкции
  */
 public class CodeGenerator {
 
+    private final Map<String, Integer> labelAddresses = new HashMap<>();
+    private final List<GosubPatch> gosubPatches = new ArrayList<>();
+
     private final List<Instruction> instructions = new ArrayList<>();
     private final Deque<List<Integer>> breakJumpStack = new ArrayDeque<>();
     private int nextRegister = 0;
+
+    private record GosubPatch(
+            int instructionIndex,
+            String labelName
+    ) {
+    }
 
     public List<Instruction> generate(Program program) {
         for (Statement statement : program.statements()) {
             generateStatement(statement);
         }
+
+        patchGosubInstructions();
 
         return instructions;
     }
@@ -77,6 +85,26 @@ public class CodeGenerator {
 
         if (statement instanceof Break) {
             generateBreak();
+            return;
+        }
+
+        if (statement instanceof Gosub gosub) {
+            generateGosub(gosub);
+            return;
+        }
+
+        if (statement instanceof Return) {
+            generateReturn();
+            return;
+        }
+
+        if (statement instanceof Label label) {
+            generateLabel(label);
+            return;
+        }
+
+        if (statement instanceof End) {
+            generateEnd();
             return;
         }
 
@@ -354,6 +382,51 @@ public class CodeGenerator {
                 OpCode.INPUT,
                 input.variableName()
         ));
+    }
+
+    private void generateGosub(Gosub gosub) {
+        int instructionIndex = instructions.size();
+
+        instructions.add(new Instruction(
+                OpCode.GOSUB,
+                -1
+        ));
+
+        gosubPatches.add(new GosubPatch(instructionIndex, gosub.labelName()));
+    }
+
+    private void generateReturn() {
+        instructions.add(new Instruction(
+                OpCode.RETURN
+        ));
+    }
+
+    private void generateLabel(Label label) {
+        labelAddresses.put(label.name(), instructions.size());
+    }
+
+    private void generateEnd() {
+        instructions.add(new Instruction(
+                OpCode.STOP
+        ));
+    }
+
+    private void patchGosubInstructions() {
+        for (GosubPatch patch : gosubPatches) {
+            Integer labelAddress = labelAddresses.get(patch.labelName());
+
+            if (labelAddress == null) {
+                throw new RuntimeException("Метка не найдена при генерации кода: " + patch.labelName());
+            }
+
+            instructions.set(
+                    patch.instructionIndex(),
+                    new Instruction(
+                            OpCode.GOSUB,
+                            labelAddress
+                    )
+            );
+        }
     }
 
     private int allocateRegister() {

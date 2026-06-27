@@ -71,6 +71,22 @@ public class Parser {
             return parseBreak();
         }
 
+        if (match(TokenType.GOSUB)) {
+            return parseGosub();
+        }
+
+        if (match(TokenType.RETURN)) {
+            return parseReturn();
+        }
+
+        if (match(TokenType.END)) {
+            return parseEnd();
+        }
+
+        if (check(TokenType.IDENTIFIER) && checkNext(TokenType.COLON)) {
+            return parseLabel();
+        }
+
         if (check(TokenType.IDENTIFIER)) {
             return parseAssignment();
         }
@@ -370,5 +386,41 @@ public class Parser {
         Expression expression = parseExpression();
 
         return new Assignment(name.text(), expression);
+    }
+
+    private Statement parseGosub() {
+        Token labelName = consume(TokenType.IDENTIFIER, "Ожидалось имя метки после gosub");
+
+        consume(TokenType.SEMICOLON, "Ожидалась ';' после gosub");
+
+        return new Gosub(labelName.text());
+    }
+
+    private Statement parseReturn() {
+        consume(TokenType.SEMICOLON, "Ожидалась ';' после return");
+
+        return new Return();
+    }
+
+    private Statement parseEnd() {
+        consume(TokenType.SEMICOLON, "Ожидалась ';' после end");
+
+        return new End();
+    }
+
+    private Statement parseLabel() {
+        Token name = consume(TokenType.IDENTIFIER, "Ожидалось имя метки");
+
+        consume(TokenType.COLON, "Ожидалось ':' после имени метки");
+
+        return new Label(name.text());
+    }
+
+    private boolean checkNext(TokenType type) {
+        if (current + 1 >= tokens.size()) {
+            return false;
+        }
+
+        return tokens.get(current + 1).type() == type;
     }
 }

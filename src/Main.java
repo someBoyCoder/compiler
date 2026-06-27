@@ -13,18 +13,17 @@ public class Main {
 
     public static void main(String[] args) {
         String source = """
-        int x;
-        double y;
-        double result;
+        print "Начало";
 
-        x = 5;
-        y = 2.5;
-        result = x + y;
+        gosub hello;
 
-        print x;
-        print y;
-        print result;
-        print result > 7.0;
+        print "Конец";
+
+        end;
+
+        hello:
+            print "Привет из gosub";
+            return;
         """;
 
         Lexer lexer = new Lexer(source);

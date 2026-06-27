@@ -21,6 +21,10 @@ public enum TokenType {
     BREAK,
     COLON,
 
+    GOSUB,
+    RETURN,
+    END,
+
     TRUE,
     FALSE,
 

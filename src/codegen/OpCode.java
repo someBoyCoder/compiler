@@ -23,6 +23,10 @@ public enum OpCode {
     JUMP_IF_TRUE,
     JUMP_IF_FALSE,
 
+    GOSUB,
+    RETURN,
+    STOP,
+
     PRINT,
     INPUT
 }

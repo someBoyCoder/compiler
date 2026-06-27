@@ -3,10 +3,7 @@ package vm;
 import codegen.Instruction;
 import semantic.Type;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Выполняет инструкции
@@ -16,6 +13,7 @@ public class VirtualMachine {
     private final Object[] registers = new Object[256];
     private final Map<String, Object> variables = new HashMap<>();
     private final Map<String, Type> variableTypes = new HashMap<>();
+    private final Deque<Integer> callStack = new ArrayDeque<>();
     private final Scanner scanner = new Scanner(System.in);
 
     public void execute(List<Instruction> instructions) {
@@ -225,6 +223,25 @@ public class VirtualMachine {
                     } else {
                         ip++;
                     }
+                }
+
+                case GOSUB -> {
+                    int targetIndex = (int) args[0];
+
+                    callStack.push(ip + 1);
+                    ip = targetIndex;
+                }
+
+                case RETURN -> {
+                    if (callStack.isEmpty()) {
+                        throw new RuntimeException("return вызван без gosub");
+                    }
+
+                    ip = callStack.pop();
+                }
+
+                case STOP -> {
+                    return;
                 }
             }
         }
