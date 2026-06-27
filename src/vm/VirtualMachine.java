@@ -201,6 +201,7 @@ public class VirtualMachine {
                         case DOUBLE -> Double.parseDouble(value);
                         case BOOLEAN -> Boolean.parseBoolean(value);
                         case STRING -> value;
+                        case ERROR -> throw new RuntimeException("Нельзя выполнить input для типа ERROR");
                     };
 
                     variables.put(name, parsedValue);
@@ -208,11 +209,7 @@ public class VirtualMachine {
                     ip++;
                 }
 
-                case JUMP -> {
-                    int targetIndex = (int) args[0];
-
-                    ip = targetIndex;
-                }
+                case JUMP -> ip = (int) args[0];
 
                 case JUMP_IF_FALSE -> {
                     int conditionRegister = (int) args[0];
@@ -293,6 +290,7 @@ public class VirtualMachine {
             case DOUBLE -> 0.0;
             case BOOLEAN -> false;
             case STRING -> "";
+            case ERROR -> throw new RuntimeException("Нельзя создать переменную типа ERROR");
         };
     }
 }

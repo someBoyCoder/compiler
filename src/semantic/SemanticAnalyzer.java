@@ -1,6 +1,7 @@
 package semantic;
 
 import ast.*;
+import error.ErrorReporter;
 
 import java.util.*;
 
@@ -15,6 +16,12 @@ public class SemanticAnalyzer {
 
     private int breakDepth = 0;
 
+    private final ErrorReporter errorReporter;
+
+    public SemanticAnalyzer(ErrorReporter errorReporter) {
+        this.errorReporter = errorReporter;
+    }
+
     public void analyze(Program program) {
         collectLabels(program.statements());
 
@@ -27,7 +34,11 @@ public class SemanticAnalyzer {
         for (Statement statement : statements) {
             if (statement instanceof Label label) {
                 if (labels.contains(label.name())) {
-                    throw new RuntimeException("Метка уже объявлена: " + label.name());
+                    errorReporter.report(
+                            label.position(),
+                            "Метка уже объявлена: " + label.name()
+                    );
+                    continue;
                 }
 
                 labels.add(label.name());
@@ -62,22 +73,29 @@ public class SemanticAnalyzer {
             analyzeFor(forStatement);
         } else if (statement instanceof Switch switchStatement) {
             analyzeSwitch(switchStatement);
-        } else if (statement instanceof Break) {
-            analyzeBreak();
+        } else if (statement instanceof Break breakStatement) {
+            analyzeBreak(breakStatement);
         } else if (statement instanceof Gosub gosub) {
             analyzeGosub(gosub);
-        } else if (statement instanceof Return) {
-            // return допустим, отдельной проверки пока не делаем
-        } else if (statement instanceof Label) {
-            // метки уже проверены в collectLabels
-        } else if (statement instanceof End) {
-            // end допустим
+        } else if (statement instanceof Return
+                || statement instanceof Label
+                || statement instanceof End) {
+            // Эти операторы допустимы, дополнительная семантическая проверка не требуется
+        } else {
+            errorReporter.report(
+                    statement.position(),
+                    "Неизвестный оператор: " + statement.getClass().getSimpleName()
+            );
         }
     }
 
     private void analyzeDeclaration(Declaration declaration) {
         if (variables.containsKey(declaration.name())) {
-            throw new RuntimeException("Переменная уже объявлена: " + declaration.name());
+            errorReporter.report(
+                    declaration.position(),
+                    "Переменная уже объявлена: " + declaration.name()
+            );
+            return;
         }
 
         variables.put(declaration.name(), declaration.type());
@@ -85,11 +103,20 @@ public class SemanticAnalyzer {
 
     private void analyzeAssignment(Assignment assignment) {
         if (!variables.containsKey(assignment.name())) {
-            throw new RuntimeException("Переменная не объявлена: " + assignment.name());
+            errorReporter.report(
+                    assignment.position(),
+                    "Переменная не объявлена: " + assignment.name()
+            );
+            analyzeExpression(assignment.expression());
+            return;
         }
 
         Type variableType = variables.get(assignment.name());
         Type expressionType = analyzeExpression(assignment.expression());
+
+        if (expressionType == Type.ERROR) {
+            return;
+        }
 
         if (variableType == expressionType) {
             return;
@@ -99,8 +126,11 @@ public class SemanticAnalyzer {
             return;
         }
 
-        throw new RuntimeException("Нельзя присвоить значение типа "
-                + expressionType + " переменной типа " + variableType);
+        errorReporter.report(
+                assignment.position(),
+                "Нельзя присвоить значение типа " + expressionType
+                        + " переменной типа " + variableType
+        );
     }
 
     private Type analyzeExpression(Expression expression) {
@@ -122,7 +152,11 @@ public class SemanticAnalyzer {
 
         if (expression instanceof VariableExpression variable) {
             if (!variables.containsKey(variable.name())) {
-                throw new RuntimeException("Переменная не объявлена: " + variable.name());
+                errorReporter.report(
+                        variable.position(),
+                        "Переменная не объявлена: " + variable.name()
+                );
+                return Type.ERROR;
             }
 
             return variables.get(variable.name());
@@ -132,11 +166,19 @@ public class SemanticAnalyzer {
             Type leftType = analyzeExpression(binary.left());
             Type rightType = analyzeExpression(binary.right());
 
+            if (leftType == Type.ERROR || rightType == Type.ERROR) {
+                return Type.ERROR;
+            }
+
             String operator = binary.operator();
 
             if (operator.equals("+") || operator.equals("-") || operator.equals("*") || operator.equals("/")) {
                 if (!isNumeric(leftType) || !isNumeric(rightType)) {
-                    throw new RuntimeException("Арифметические операции допустимы только для int и double");
+                    errorReporter.report(
+                            binary.position(),
+                            "Арифметические операции допустимы только для int и double"
+                    );
+                    return Type.ERROR;
                 }
 
                 return numericResultType(leftType, rightType);
@@ -144,7 +186,11 @@ public class SemanticAnalyzer {
 
             if (operator.equals("<") || operator.equals("<=") || operator.equals(">") || operator.equals(">=")) {
                 if (!isNumeric(leftType) || !isNumeric(rightType)) {
-                    throw new RuntimeException("Операции сравнения < <= > >= допустимы только для int и double");
+                    errorReporter.report(
+                            binary.position(),
+                            "Операции сравнения < <= > >= допустимы только для int и double"
+                    );
+                    return Type.ERROR;
                 }
 
                 return Type.BOOLEAN;
@@ -159,11 +205,20 @@ public class SemanticAnalyzer {
                     return Type.BOOLEAN;
                 }
 
-                throw new RuntimeException("В операциях == и != типы должны совпадать");
+                errorReporter.report(
+                        binary.position(),
+                        "В операциях == и != типы должны совпадать"
+                );
+                return Type.ERROR;
             }
         }
 
-        throw new RuntimeException("Неизвестное выражение");
+        errorReporter.report(
+                expression.position(),
+                "Неизвестное выражение"
+        );
+
+        return Type.ERROR;
     }
 
     private void analyzeDoWhile(DoWhile doWhile) {
@@ -173,8 +228,11 @@ public class SemanticAnalyzer {
 
         Type conditionType = analyzeExpression(doWhile.condition());
 
-        if (conditionType != Type.BOOLEAN) {
-            throw new RuntimeException("Условие цикла do-while должно иметь тип boolean");
+        if (conditionType != Type.ERROR && conditionType != Type.BOOLEAN) {
+            errorReporter.report(
+                    doWhile.condition().position(),
+                    "Условие цикла do-while должно иметь тип boolean"
+            );
         }
     }
 
@@ -183,8 +241,11 @@ public class SemanticAnalyzer {
 
         Type conditionType = analyzeExpression(forStatement.condition());
 
-        if (conditionType != Type.BOOLEAN) {
-            throw new RuntimeException("Условие цикла for должно иметь тип boolean");
+        if (conditionType != Type.ERROR && conditionType != Type.BOOLEAN) {
+            errorReporter.report(
+                    forStatement.condition().position(),
+                    "Условие цикла for должно иметь тип boolean"
+            );
         }
 
         analyzeAssignment(forStatement.update());
@@ -200,15 +261,13 @@ public class SemanticAnalyzer {
         breakDepth++;
 
         for (SwitchCase switchCase : switchStatement.cases()) {
-            if (!(switchCase.value() instanceof NumberExpression)
-                    && !(switchCase.value() instanceof BooleanExpression)) {
-                throw new RuntimeException("Значение case должно быть литералом");
-            }
-
             Type caseType = analyzeExpression(switchCase.value());
 
-            if (caseType != switchType) {
-                throw new RuntimeException("Тип case должен совпадать с типом выражения switch");
+            if (caseType != Type.ERROR && switchType != Type.ERROR && caseType != switchType) {
+                errorReporter.report(
+                        switchCase.value().position(),
+                        "Тип case должен совпадать с типом выражения switch"
+                );
             }
 
             for (Statement statement : switchCase.body()) {
@@ -225,15 +284,30 @@ public class SemanticAnalyzer {
         breakDepth--;
     }
 
-    private void analyzeBreak() {
+    private void analyzeBreak(Break breakStatement) {
         if (breakDepth == 0) {
-            throw new RuntimeException("Оператор break можно использовать только внутри switch");
+            errorReporter.report(
+                    breakStatement.position(),
+                    "Оператор break можно использовать только внутри switch"
+            );
         }
     }
 
     private void analyzeInput(Input input) {
         if (!variables.containsKey(input.variableName())) {
-            throw new RuntimeException("Переменная не объявлена: " + input.variableName());
+            errorReporter.report(
+                    input.position(),
+                    "Переменная не объявлена: " + input.variableName()
+            );
+        }
+    }
+
+    private void analyzeGosub(Gosub gosub) {
+        if (!labels.contains(gosub.labelName())) {
+            errorReporter.report(
+                    gosub.position(),
+                    "Метка не найдена: " + gosub.labelName()
+            );
         }
     }
 
@@ -247,11 +321,5 @@ public class SemanticAnalyzer {
 
     private boolean isNumeric(Type type) {
         return type == Type.INT || type == Type.DOUBLE;
-    }
-
-    private void analyzeGosub(Gosub gosub) {
-        if (!labels.contains(gosub.labelName())) {
-            throw new RuntimeException("Метка не найдена: " + gosub.labelName());
-        }
     }
 }

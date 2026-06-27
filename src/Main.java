@@ -1,6 +1,7 @@
 import ast.Program;
 import codegen.CodeGenerator;
 import codegen.Instruction;
+import error.ErrorReporter;
 import lexer.Lexer;
 import lexer.Token;
 import parser.Parser;
@@ -13,37 +14,41 @@ public class Main {
 
     public static void main(String[] args) {
         String source = """
-        print "Начало";
+                int x;
+                int x;
 
-        gosub hello;
+                y = 5;
 
-        print "Конец";
+                boolean flag;
+                flag = 10;
 
-        end;
+                int z;
+                z = "hello";
 
-        hello:
-            print "Привет из gosub";
-            return;
-        """;
+                do {
+                    print z;
+                } while (z);
+                """;
+
+        ErrorReporter errorReporter = new ErrorReporter();
 
         Lexer lexer = new Lexer(source);
         List<Token> tokens = lexer.tokenize();
 
-        Parser parser = new Parser(tokens);
+        Parser parser = new Parser(tokens, errorReporter);
         Program program = parser.parse();
 
-        SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer();
+        SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer(errorReporter);
         semanticAnalyzer.analyze(program);
+
+        if (errorReporter.hasErrors()) {
+            errorReporter.printErrors();
+            return;
+        }
 
         CodeGenerator codeGenerator = new CodeGenerator();
         List<Instruction> instructions = codeGenerator.generate(program);
 
-        System.out.println("Сгенерированные инструкции:");
-        for (Instruction instruction : instructions) {
-            System.out.println(instruction.opCode() + " " + List.of(instruction.args()));
-        }
-
-        System.out.println("Результат выполнения:");
         VirtualMachine virtualMachine = new VirtualMachine();
         virtualMachine.execute(instructions);
     }

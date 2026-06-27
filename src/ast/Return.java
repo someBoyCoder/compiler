@@ -1,4 +1,8 @@
 package ast;
 
-public record Return() implements Statement {
+import error.SourcePosition;
+
+public record Return(
+        SourcePosition position
+) implements Statement {
 }

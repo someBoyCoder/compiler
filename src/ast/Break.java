@@ -1,4 +1,8 @@
 package ast;
 
-public record Break() implements Statement {
+import error.SourcePosition;
+
+public record Break(
+        SourcePosition position
+) implements Statement {
 }

@@ -1,6 +1,9 @@
 package ast;
 
+import error.SourcePosition;
+
 public record Gosub(
-        String labelName
+        String labelName,
+        SourcePosition position
 ) implements Statement {
 }

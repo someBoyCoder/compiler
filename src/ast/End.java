@@ -1,4 +1,8 @@
 package ast;
 
-public record End() implements Statement {
+import error.SourcePosition;
+
+public record End(
+        SourcePosition position
+) implements Statement {
 }

@@ -1,6 +1,9 @@
 package ast;
 
+import error.SourcePosition;
+
 public record StringExpression(
-        String value
+        String value,
+        SourcePosition position
 ) implements Expression {
 }

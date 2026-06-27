@@ -1,6 +1,8 @@
 package parser;
 
 import ast.*;
+import error.ErrorReporter;
+import error.SourcePosition;
 import lexer.Token;
 import lexer.TokenType;
 import semantic.Type;
@@ -15,16 +17,23 @@ public class Parser {
 
     private final List<Token> tokens;
     private int current = 0;
+    private final ErrorReporter errorReporter;
 
-    public Parser(List<Token> tokens) {
+    public Parser(List<Token> tokens, ErrorReporter errorReporter) {
         this.tokens = tokens;
+        this.errorReporter = errorReporter;
     }
 
     public Program parse() {
         List<Statement> statements = new ArrayList<>();
 
         while (!isAtEnd()) {
-            statements.add(parseStatement());
+            try {
+                statements.add(parseStatement());
+            } catch (ParseException exception) {
+                errorReporter.report(exception.position(), exception.getMessage());
+                synchronize();
+            }
         }
 
         return new Program(statements);
@@ -98,26 +107,25 @@ public class Parser {
         Token name = consume(TokenType.IDENTIFIER, "Ожидалось имя переменной");
         consume(TokenType.SEMICOLON, "Ожидалась ';' после объявления переменной");
 
-        return new Declaration(type, name.text());
+        return new Declaration(type, name.text(), SourcePosition.from(name));
     }
 
     private Statement parseAssignment() {
-        Token name = consume(TokenType.IDENTIFIER, "Ожидалось имя переменной");
-        consume(TokenType.ASSIGN, "Ожидался знак '='");
-
-        Expression expression = parseExpression();
+        Assignment assignment = parseAssignmentWithoutSemicolon();
 
         consume(TokenType.SEMICOLON, "Ожидалась ';' после присваивания");
 
-        return new Assignment(name.text(), expression);
+        return assignment;
     }
 
     private Statement parsePrint() {
+        Token printToken = previous();
+
         Expression expression = parseExpression();
 
         consume(TokenType.SEMICOLON, "Ожидалась ';' после print");
 
-        return new Print(expression);
+        return new Print(expression, SourcePosition.from(printToken));
     }
 
     private Expression parseExpression() {
@@ -131,7 +139,12 @@ public class Parser {
             Token operator = previous();
             Expression right = parseComparison();
 
-            expression = new BinaryExpression(expression, operator.text(), right);
+            expression = new BinaryExpression(
+                    expression,
+                    operator.text(),
+                    right,
+                    SourcePosition.from(operator)
+            );
         }
 
         return expression;
@@ -144,7 +157,12 @@ public class Parser {
             Token operator = previous();
             Expression right = parseTerm();
 
-            expression = new BinaryExpression(expression, operator.text(), right);
+            expression = new BinaryExpression(
+                    expression,
+                    operator.text(),
+                    right,
+                    SourcePosition.from(operator)
+            );
         }
 
         return expression;
@@ -157,7 +175,12 @@ public class Parser {
             Token operator = previous();
             Expression right = parseFactor();
 
-            expression = new BinaryExpression(expression, operator.text(), right);
+            expression = new BinaryExpression(
+                    expression,
+                    operator.text(),
+                    right,
+                    SourcePosition.from(operator)
+            );
         }
 
         return expression;
@@ -170,7 +193,12 @@ public class Parser {
             Token operator = previous();
             Expression right = parsePrimary();
 
-            expression = new BinaryExpression(expression, operator.text(), right);
+            expression = new BinaryExpression(
+                    expression,
+                    operator.text(),
+                    right,
+                    SourcePosition.from(operator)
+            );
         }
 
         return expression;
@@ -178,29 +206,46 @@ public class Parser {
 
     private Expression parsePrimary() {
         if (match(TokenType.NUMBER)) {
-            String text = previous().text();
+            Token numberToken = previous();
+            String text = numberToken.text();
 
             if (text.contains(".")) {
-                return new DoubleExpression(Double.parseDouble(text));
+                return new DoubleExpression(
+                        Double.parseDouble(text),
+                        SourcePosition.from(numberToken)
+                );
             }
 
-            return new NumberExpression(Integer.parseInt(text));
+            return new NumberExpression(
+                    Integer.parseInt(text),
+                    SourcePosition.from(numberToken)
+            );
         }
 
         if (match(TokenType.STRING)) {
-            return new StringExpression(previous().text());
+            Token stringToken = previous();
+
+            return new StringExpression(
+                    stringToken.text(),
+                    SourcePosition.from(stringToken)
+            );
         }
 
         if (match(TokenType.TRUE)) {
-            return new BooleanExpression(true);
+            return new BooleanExpression(true, SourcePosition.from(previous()));
         }
 
         if (match(TokenType.FALSE)) {
-            return new BooleanExpression(false);
+            return new BooleanExpression(false, SourcePosition.from(previous()));
         }
 
         if (match(TokenType.IDENTIFIER)) {
-            return new VariableExpression(previous().text());
+            Token variableToken = previous();
+
+            return new VariableExpression(
+                    variableToken.text(),
+                    SourcePosition.from(variableToken)
+            );
         }
 
         if (match(TokenType.LEFT_PAREN)) {
@@ -256,6 +301,8 @@ public class Parser {
     }
 
     private Statement parseDoWhile() {
+        Token doToken = previous();
+
         consume(TokenType.LEFT_BRACE, "Ожидалась '{' после do");
 
         List<Statement> body = new ArrayList<>();
@@ -273,10 +320,12 @@ public class Parser {
         consume(TokenType.RIGHT_PAREN, "Ожидалась ')' после условия");
         consume(TokenType.SEMICOLON, "Ожидалась ';' после do-while");
 
-        return new DoWhile(body, condition);
+        return new DoWhile(body, condition, SourcePosition.from(doToken));
     }
 
     private Statement parseFor() {
+        Token forToken = previous();
+
         consume(TokenType.LEFT_PAREN, "Ожидалась '(' после for");
 
         Assignment init = parseAssignmentWithoutSemicolon();
@@ -301,15 +350,20 @@ public class Parser {
 
         consume(TokenType.RIGHT_BRACE, "Ожидалась '}' после тела for");
 
-        return new For(init, condition, update, body);
+        return new For(init, condition, update, body, SourcePosition.from(forToken));
     }
 
     private Statement parseBreak() {
+        Token breakToken = previous();
+
         consume(TokenType.SEMICOLON, "Ожидалась ';' после break");
-        return new Break();
+
+        return new Break(SourcePosition.from(breakToken));
     }
 
     private Statement parseSwitch() {
+        Token switchToken = previous();
+
         consume(TokenType.LEFT_PAREN, "Ожидалась '(' после switch");
 
         Expression expression = parseExpression();
@@ -336,7 +390,7 @@ public class Parser {
 
         consume(TokenType.RIGHT_BRACE, "Ожидалась '}' после switch");
 
-        return new Switch(expression, cases, defaultBody);
+        return new Switch(expression, cases, defaultBody, SourcePosition.from(switchToken));
     }
 
     private List<Statement> parseDefaultBody() {
@@ -372,11 +426,13 @@ public class Parser {
     }
 
     private Statement parseInput() {
+        Token inputToken = previous();
+
         Token variableName = consume(TokenType.IDENTIFIER, "Ожидалось имя переменной после input");
 
         consume(TokenType.SEMICOLON, "Ожидалась ';' после input");
 
-        return new Input(variableName.text());
+        return new Input(variableName.text(), SourcePosition.from(inputToken));
     }
 
     private Assignment parseAssignmentWithoutSemicolon() {
@@ -385,27 +441,33 @@ public class Parser {
 
         Expression expression = parseExpression();
 
-        return new Assignment(name.text(), expression);
+        return new Assignment(name.text(), expression, SourcePosition.from(name));
     }
 
     private Statement parseGosub() {
+        Token gosubToken = previous();
+
         Token labelName = consume(TokenType.IDENTIFIER, "Ожидалось имя метки после gosub");
 
         consume(TokenType.SEMICOLON, "Ожидалась ';' после gosub");
 
-        return new Gosub(labelName.text());
+        return new Gosub(labelName.text(), SourcePosition.from(gosubToken));
     }
 
     private Statement parseReturn() {
+        Token returnToken = previous();
+
         consume(TokenType.SEMICOLON, "Ожидалась ';' после return");
 
-        return new Return();
+        return new Return(SourcePosition.from(returnToken));
     }
 
     private Statement parseEnd() {
+        Token endToken = previous();
+
         consume(TokenType.SEMICOLON, "Ожидалась ';' после end");
 
-        return new End();
+        return new End(SourcePosition.from(endToken));
     }
 
     private Statement parseLabel() {
@@ -413,7 +475,7 @@ public class Parser {
 
         consume(TokenType.COLON, "Ожидалось ':' после имени метки");
 
-        return new Label(name.text());
+        return new Label(name.text(), SourcePosition.from(name));
     }
 
     private boolean checkNext(TokenType type) {
@@ -422,5 +484,39 @@ public class Parser {
         }
 
         return tokens.get(current + 1).type() == type;
+    }
+
+    private void synchronize() {
+        while (!isAtEnd()) {
+            if (previousSafe().type() == TokenType.SEMICOLON) {
+                return;
+            }
+
+            if (check(TokenType.INT)
+                    || check(TokenType.DOUBLE)
+                    || check(TokenType.BOOLEAN)
+                    || check(TokenType.STRING_TYPE)
+                    || check(TokenType.PRINT)
+                    || check(TokenType.INPUT)
+                    || check(TokenType.DO)
+                    || check(TokenType.FOR)
+                    || check(TokenType.SWITCH)
+                    || check(TokenType.GOSUB)
+                    || check(TokenType.RETURN)
+                    || check(TokenType.END)
+                    || check(TokenType.IDENTIFIER)) {
+                return;
+            }
+
+            advance();
+        }
+    }
+
+    private Token previousSafe() {
+        if (current == 0) {
+            return peek();
+        }
+
+        return previous();
     }
 }
