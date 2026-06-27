@@ -35,6 +35,10 @@ public class Parser {
             return parseDeclaration(Type.INT);
         }
 
+        if (match(TokenType.DOUBLE)) {
+            return parseDeclaration(Type.DOUBLE);
+        }
+
         if (match(TokenType.BOOLEAN)) {
             return parseDeclaration(Type.BOOLEAN);
         }
@@ -158,7 +162,13 @@ public class Parser {
 
     private Expression parsePrimary() {
         if (match(TokenType.NUMBER)) {
-            return new NumberExpression(Integer.parseInt(previous().text()));
+            String text = previous().text();
+
+            if (text.contains(".")) {
+                return new DoubleExpression(Double.parseDouble(text));
+            }
+
+            return new NumberExpression(Integer.parseInt(text));
         }
 
         if (match(TokenType.STRING)) {

@@ -5,6 +5,7 @@ package lexer;
  */
 public enum TokenType {
     INT,
+    DOUBLE,
     BOOLEAN,
     STRING_TYPE,
 

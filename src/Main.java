@@ -13,27 +13,18 @@ public class Main {
 
     public static void main(String[] args) {
         String source = """
-        string name;
-        int age;
-        boolean likesJava;
+        int x;
+        double y;
+        double result;
 
-        print "Введите имя:";
-        input name;
+        x = 5;
+        y = 2.5;
+        result = x + y;
 
-        print "Введите возраст:";
-        input age;
-
-        print "Любишь Java? true/false:";
-        input likesJava;
-
-        print "Имя:";
-        print name;
-
-        print "Возраст:";
-        print age;
-
-        print "Любит Java:";
-        print likesJava;
+        print x;
+        print y;
+        print result;
+        print result > 7.0;
         """;
 
         Lexer lexer = new Lexer(source);

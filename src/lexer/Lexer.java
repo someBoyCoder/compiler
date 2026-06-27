@@ -52,6 +52,7 @@ public class Lexer {
 
         TokenType type = switch (text) {
             case "int" -> TokenType.INT;
+            case "double" -> TokenType.DOUBLE;
             case "boolean" -> TokenType.BOOLEAN;
             case "string" -> TokenType.STRING_TYPE;
             case "input" -> TokenType.INPUT;
@@ -104,6 +105,19 @@ public class Lexer {
 
         while (!isAtEnd() && Character.isDigit(peek())) {
             sb.append(advance());
+        }
+
+        if (!isAtEnd() && peek() == '.') {
+            sb.append(advance());
+
+            if (isAtEnd() || !Character.isDigit(peek())) {
+                throw new RuntimeException("Некорректное вещественное число в строке "
+                        + line + ", колонка " + startColumn);
+            }
+
+            while (!isAtEnd() && Character.isDigit(peek())) {
+                sb.append(advance());
+            }
         }
 
         tokens.add(new Token(TokenType.NUMBER, sb.toString(), line, startColumn));

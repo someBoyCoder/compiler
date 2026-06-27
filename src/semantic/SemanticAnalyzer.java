@@ -56,9 +56,16 @@ public class SemanticAnalyzer {
         Type variableType = variables.get(assignment.name());
         Type expressionType = analyzeExpression(assignment.expression());
 
-        if (variableType != expressionType) {
-            throw new RuntimeException("Несовместимые типы при присваивании");
+        if (variableType == expressionType) {
+            return;
         }
+
+        if (variableType == Type.DOUBLE && expressionType == Type.INT) {
+            return;
+        }
+
+        throw new RuntimeException("Нельзя присвоить значение типа "
+                + expressionType + " переменной типа " + variableType);
     }
 
     private Type analyzeExpression(Expression expression) {
@@ -66,12 +73,16 @@ public class SemanticAnalyzer {
             return Type.INT;
         }
 
-        if (expression instanceof StringExpression) {
-            return Type.STRING;
+        if (expression instanceof DoubleExpression) {
+            return Type.DOUBLE;
         }
 
         if (expression instanceof BooleanExpression) {
             return Type.BOOLEAN;
+        }
+
+        if (expression instanceof StringExpression) {
+            return Type.STRING;
         }
 
         if (expression instanceof VariableExpression variable) {
@@ -89,27 +100,31 @@ public class SemanticAnalyzer {
             String operator = binary.operator();
 
             if (operator.equals("+") || operator.equals("-") || operator.equals("*") || operator.equals("/")) {
-                if (leftType != Type.INT || rightType != Type.INT) {
-                    throw new RuntimeException("Арифметические операции допустимы только для int");
+                if (!isNumeric(leftType) || !isNumeric(rightType)) {
+                    throw new RuntimeException("Арифметические операции допустимы только для int и double");
                 }
 
-                return Type.INT;
+                return numericResultType(leftType, rightType);
             }
 
             if (operator.equals("<") || operator.equals("<=") || operator.equals(">") || operator.equals(">=")) {
-                if (leftType != Type.INT || rightType != Type.INT) {
-                    throw new RuntimeException("Операции сравнения < <= > >= допустимы только для int");
+                if (!isNumeric(leftType) || !isNumeric(rightType)) {
+                    throw new RuntimeException("Операции сравнения < <= > >= допустимы только для int и double");
                 }
 
                 return Type.BOOLEAN;
             }
 
             if (operator.equals("==") || operator.equals("!=")) {
-                if (leftType != rightType) {
-                    throw new RuntimeException("В операциях == и != типы должны совпадать");
+                if (leftType == rightType) {
+                    return Type.BOOLEAN;
                 }
 
-                return Type.BOOLEAN;
+                if (isNumeric(leftType) && isNumeric(rightType)) {
+                    return Type.BOOLEAN;
+                }
+
+                throw new RuntimeException("В операциях == и != типы должны совпадать");
             }
         }
 
@@ -185,5 +200,17 @@ public class SemanticAnalyzer {
         if (!variables.containsKey(input.variableName())) {
             throw new RuntimeException("Переменная не объявлена: " + input.variableName());
         }
+    }
+
+    private Type numericResultType(Type leftType, Type rightType) {
+        if (leftType == Type.DOUBLE || rightType == Type.DOUBLE) {
+            return Type.DOUBLE;
+        }
+
+        return Type.INT;
+    }
+
+    private boolean isNumeric(Type type) {
+        return type == Type.INT || type == Type.DOUBLE;
     }
 }

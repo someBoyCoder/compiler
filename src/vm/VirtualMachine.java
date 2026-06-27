@@ -69,7 +69,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] + (Integer) registers[right];
+                    registers[result] = add(registers[left], registers[right]);
                     ip++;
                 }
 
@@ -78,7 +78,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] - (Integer) registers[right];
+                    registers[result] = sub(registers[left], registers[right]);
                     ip++;
                 }
 
@@ -87,7 +87,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] * (Integer) registers[right];
+                    registers[result] = mul(registers[left], registers[right]);
                     ip++;
                 }
 
@@ -96,7 +96,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] / (Integer) registers[right];
+                    registers[result] = div(registers[left], registers[right]);
                     ip++;
                 }
 
@@ -105,7 +105,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] < (Integer) registers[right];
+                    registers[result] = toDouble(registers[left]) < toDouble(registers[right]);
                     ip++;
                 }
 
@@ -114,7 +114,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] <= (Integer) registers[right];
+                    registers[result] = toDouble(registers[left]) <= toDouble(registers[right]);
                     ip++;
                 }
 
@@ -123,7 +123,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] > (Integer) registers[right];
+                    registers[result] = toDouble(registers[left]) > toDouble(registers[right]);
                     ip++;
                 }
 
@@ -132,7 +132,7 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = (Integer) registers[left] >= (Integer) registers[right];
+                    registers[result] = toDouble(registers[left]) >= toDouble(registers[right]);
                     ip++;
                 }
 
@@ -141,7 +141,15 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = registers[left].equals(registers[right]);
+                    Object leftValue = registers[left];
+                    Object rightValue = registers[right];
+
+                    if (leftValue instanceof Number && rightValue instanceof Number) {
+                        registers[result] = toDouble(leftValue) == toDouble(rightValue);
+                    } else {
+                        registers[result] = leftValue.equals(rightValue);
+                    }
+
                     ip++;
                 }
 
@@ -150,7 +158,15 @@ public class VirtualMachine {
                     int left = (int) args[1];
                     int right = (int) args[2];
 
-                    registers[result] = !registers[left].equals(registers[right]);
+                    Object leftValue = registers[left];
+                    Object rightValue = registers[right];
+
+                    if (leftValue instanceof Number && rightValue instanceof Number) {
+                        registers[result] = toDouble(leftValue) != toDouble(rightValue);
+                    } else {
+                        registers[result] = !leftValue.equals(rightValue);
+                    }
+
                     ip++;
                 }
 
@@ -184,6 +200,7 @@ public class VirtualMachine {
 
                     Object parsedValue = switch (type) {
                         case INT -> Integer.parseInt(value);
+                        case DOUBLE -> Double.parseDouble(value);
                         case BOOLEAN -> Boolean.parseBoolean(value);
                         case STRING -> value;
                     };
@@ -213,9 +230,50 @@ public class VirtualMachine {
         }
     }
 
+    private boolean isDoubleOperation(Object left, Object right) {
+        return left instanceof Double || right instanceof Double;
+    }
+
+    private Object add(Object left, Object right) {
+        if (isDoubleOperation(left, right)) {
+            return ((Number) left).doubleValue() + ((Number) right).doubleValue();
+        }
+
+        return ((Number) left).intValue() + ((Number) right).intValue();
+    }
+
+    private Object sub(Object left, Object right) {
+        if (isDoubleOperation(left, right)) {
+            return ((Number) left).doubleValue() - ((Number) right).doubleValue();
+        }
+
+        return ((Number) left).intValue() - ((Number) right).intValue();
+    }
+
+    private Object mul(Object left, Object right) {
+        if (isDoubleOperation(left, right)) {
+            return ((Number) left).doubleValue() * ((Number) right).doubleValue();
+        }
+
+        return ((Number) left).intValue() * ((Number) right).intValue();
+    }
+
+    private Object div(Object left, Object right) {
+        if (isDoubleOperation(left, right)) {
+            return ((Number) left).doubleValue() / ((Number) right).doubleValue();
+        }
+
+        return ((Number) left).intValue() / ((Number) right).intValue();
+    }
+
+    private double toDouble(Object value) {
+        return ((Number) value).doubleValue();
+    }
+
     private Object defaultValue(Type type) {
         return switch (type) {
             case INT -> 0;
+            case DOUBLE -> 0.0;
             case BOOLEAN -> false;
             case STRING -> "";
         };

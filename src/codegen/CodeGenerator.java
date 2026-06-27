@@ -96,6 +96,18 @@ public class CodeGenerator {
             return register;
         }
 
+        if (expression instanceof DoubleExpression number) {
+            int register = allocateRegister();
+
+            instructions.add(new Instruction(
+                    OpCode.LOAD_CONST,
+                    register,
+                    number.value()
+            ));
+
+            return register;
+        }
+
         if (expression instanceof StringExpression string) {
             int register = allocateRegister();
 
